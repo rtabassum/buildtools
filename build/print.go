@@ -70,6 +70,7 @@ type printer struct {
 	depth        int       // nesting depth inside ( ) [ ] { }
 	level        int       // nesting level of def-, if-else- and for-blocks
 	needsNewLine bool      // true if the next statement needs a new line before it
+	noFormat     int       // are we in no-format mode
 }
 
 // printf prints to the buffer.
@@ -85,6 +86,16 @@ func (p *printer) indent() int {
 		n++
 	}
 	return n
+}
+
+// Emits spaces and newlines to move from one logical position to another.
+func (p *printer) advance(from Position, to Position) {
+	if from.Line < to.Line {
+		p.printf("\n")
+	}
+	for p.indent() < to.LineRune - 1 {
+		p.printf(" ")
+	}
 }
 
 // newline ends the current line, flushing end-of-line comments.
@@ -371,6 +382,7 @@ func (p *printer) expr(v Expr, outerPrec int) {
 	// recent \n not following a \ line.
 	p.newlineIfNeeded()
 
+	noFormat := false
 	if before := v.Comment().Before; len(before) > 0 {
 		// Want to print a line comment.
 		// Line comments must be at the current margin.
@@ -384,7 +396,13 @@ func (p *printer) expr(v Expr, outerPrec int) {
 		for _, com := range before {
 			p.printf("%s", strings.TrimSpace(com.Token))
 			p.newline()
+			if strings.Contains(strings.ToLower(com.Token), "buildifier:noformat") {
+				noFormat = true
+			}
 		}
+	}
+	if noFormat {
+		p.noFormat += 1
 	}
 
 	// Do we introduce parentheses?
@@ -473,7 +491,15 @@ func (p *printer) expr(v Expr, outerPrec int) {
 
 	case *KeyValueExpr:
 		p.expr(v.Key, precLow)
-		p.printf(": ")
+		if p.noFormat > 0 {
+			_, from := v.Key.Span()
+			p.advance(from, v.Colon)
+			p.printf(":")
+			to, _ := v.Value.Span()
+			p.advance(v.Colon, to)
+		} else {
+			p.printf(": ")
+		}
 		p.expr(v.Value, precLow)
 
 	case *SliceExpr:
@@ -562,11 +588,19 @@ func (p *printer) expr(v Expr, outerPrec int) {
 		}
 
 		p.expr(v.LHS, precAssign)
-		p.printf(" %s", v.Op)
-		if v.LineBreak {
-			p.breakline()
+		if p.noFormat > 0 {
+			_, from := v.LHS.Span()
+			p.advance(from, v.OpPos)
+			p.printf("%s", v.Op)
+			start, _ := v.RHS.Span()
+			p.advance(from, start)
 		} else {
-			p.printf(" ")
+			p.printf(" %s", v.Op)
+			if v.LineBreak {
+				p.breakline()
+			} else {
+				p.printf(" ")
+			}
 		}
 		p.expr(v.RHS, precAssign+1)
 		p.margin = m
@@ -724,6 +758,10 @@ func (p *printer) expr(v Expr, outerPrec int) {
 	// Queue end-of-line comments for printing when we
 	// reach the end of the line.
 	p.comment = append(p.comment, v.Comment().Suffix...)
+
+	if noFormat {
+		p.noFormat -= 1
+	}
 }
 
 // A seqMode describes a formatting mode for a sequence of values,
@@ -822,6 +860,21 @@ func (p *printer) seq(brack string, start *Position, list *[]Expr, end *End, mod
 			p.printf("%s", brack[1:])
 		}
 	}()
+
+	if p.noFormat > 0 {
+		lastEnd := *start
+		for i, x := range *list {
+			if i > 0 {
+				p.printf(",")
+			}
+			exprStart, exprEnd := x.Span()
+			p.advance(lastEnd, exprStart)
+			p.expr(x, precLow)
+			lastEnd = exprEnd
+		}
+		p.advance(lastEnd, end.Pos)
+		return
+	}
 
 	if p.useCompactMode(start, list, end, mode, forceCompact, forceMultiLine) {
 		for i, x := range *list {
