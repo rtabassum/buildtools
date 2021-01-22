@@ -1,0 +1,7 @@
+# buildifier:noformat
+my_list=[
+  ["//abc:def",     "foo",          1],
+  ["xyz",           "barbaz",       2]
+]
+
+my_var="somevalue"
