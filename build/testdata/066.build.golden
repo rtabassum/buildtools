@@ -31,7 +31,6 @@ macro(
 nested = 1
 
 comments = [
-    "test TODO REMOVE"
     "a",
     ("b"),  # end of line comment
 
