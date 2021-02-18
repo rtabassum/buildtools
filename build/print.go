@@ -93,7 +93,7 @@ func (p *printer) advance(from Position, to Position) {
 	if from.Line < to.Line {
 		p.printf("\n")
 	}
-	for p.indent() < to.LineRune - 1 {
+	for p.indent() < to.LineRune-1 {
 		p.printf(" ")
 	}
 }
@@ -863,6 +863,7 @@ func (p *printer) seq(brack string, start *Position, list *[]Expr, end *End, mod
 
 	if p.noFormat > 0 {
 		lastEnd := *start
+		fmt.Println(*list, len(*list), p.depth)
 		for i, x := range *list {
 			if i > 0 {
 				p.printf(",")
@@ -871,6 +872,10 @@ func (p *printer) seq(brack string, start *Position, list *[]Expr, end *End, mod
 			p.advance(lastEnd, exprStart)
 			p.expr(x, precLow)
 			lastEnd = exprEnd
+		}
+		if p.depth == 1 {
+			fmt.Println("---- L891")
+			p.printf(",")
 		}
 		p.advance(lastEnd, end.Pos)
 		return
