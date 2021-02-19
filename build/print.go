@@ -861,7 +861,23 @@ func (p *printer) seq(brack string, start *Position, list *[]Expr, end *End, mod
 		}
 	}()
 
+	noFormat := false
 	if p.noFormat > 0 {
+		noFormat = true
+		line := (*start).Line
+		fmt.Println(*list, len(*list), p.depth)
+		for _, x := range *list {
+		   xstart, _ := x.Span()
+           if xstart.Line != line {
+			   noFormat = false
+			   break
+		   }
+		}
+	}
+
+	if noFormat {
+		// save := p.noFormat
+		// p.noFormat = 0
 		lastEnd := *start
 		fmt.Println(*list, len(*list), p.depth)
 		for i, x := range *list {
@@ -870,14 +886,11 @@ func (p *printer) seq(brack string, start *Position, list *[]Expr, end *End, mod
 			}
 			exprStart, exprEnd := x.Span()
 			p.advance(lastEnd, exprStart)
-			p.expr(x, precLow)
+			p.expr(x , precLow)
 			lastEnd = exprEnd
 		}
-		if p.depth == 1 {
-			fmt.Println("---- L891")
-			p.printf(",")
-		}
 		p.advance(lastEnd, end.Pos)
+		// p.noFormat = save
 		return
 	}
 
