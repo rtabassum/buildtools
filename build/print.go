@@ -396,7 +396,7 @@ func (p *printer) expr(v Expr, outerPrec int) {
 		for _, com := range before {
 			p.printf("%s", strings.TrimSpace(com.Token))
 			p.newline()
-			if strings.Contains(strings.ToLower(com.Token), "buildifier:noformat") {
+			if strings.Contains(strings.ToLower(com.Token), "buildifier: noformat") {
 				noFormat = true
 			}
 		}
@@ -588,7 +588,7 @@ func (p *printer) expr(v Expr, outerPrec int) {
 		}
 
 		p.expr(v.LHS, precAssign)
-		if p.noFormat > 0 {
+		if p.noFormat > 0 && false {
 			_, from := v.LHS.Span()
 			p.advance(from, v.OpPos)
 			p.printf("%s", v.Op)
@@ -865,32 +865,27 @@ func (p *printer) seq(brack string, start *Position, list *[]Expr, end *End, mod
 	if p.noFormat > 0 {
 		noFormat = true
 		line := (*start).Line
-		fmt.Println(*list, len(*list), p.depth)
 		for _, x := range *list {
-		   xstart, _ := x.Span()
-           if xstart.Line != line {
-			   noFormat = false
-			   break
-		   }
+			xstart, _ := x.Span()
+			if xstart.Line != line {
+				noFormat = false
+				break
+			}
 		}
 	}
 
 	if noFormat {
-		// save := p.noFormat
-		// p.noFormat = 0
 		lastEnd := *start
-		fmt.Println(*list, len(*list), p.depth)
 		for i, x := range *list {
 			if i > 0 {
 				p.printf(",")
 			}
 			exprStart, exprEnd := x.Span()
 			p.advance(lastEnd, exprStart)
-			p.expr(x , precLow)
+			p.expr(x, precLow)
 			lastEnd = exprEnd
 		}
 		p.advance(lastEnd, end.Pos)
-		// p.noFormat = save
 		return
 	}
 
